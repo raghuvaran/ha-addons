@@ -39,6 +39,13 @@ def setup_logging() -> None:
 
 def acquire_lock() -> int | None:
     try:
+        # Check for stale lock (older than 30 min = likely orphaned)
+        if LOCK_FILE.exists():
+            age = time.time() - LOCK_FILE.stat().st_mtime
+            if age > 1800:  # 30 minutes
+                logger.warning(f"Removing stale lock file (age: {age:.0f}s)")
+                LOCK_FILE.unlink(missing_ok=True)
+        
         fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_RDWR)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         os.write(fd, f"{os.getpid()}\n".encode())
