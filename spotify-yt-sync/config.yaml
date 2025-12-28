@@ -1,6 +1,6 @@
 name: Spotify YouTube Sync
 description: Sync Spotify Top 50 Global playlist to YouTube
-version: "1.0.2"
+version: "1.0.3"
 slug: spotify_yt_sync
 url: https://github.com/raghuvaran/ha-addons/tree/main/spotify-yt-sync
 arch:
@@ -15,13 +15,13 @@ options:
   google_client_id: ""
   google_client_secret: ""
   sync_schedule: "0 2 * * *"
-  log_level: info
+  log_level: "info"
 schema:
   youtube_playlist_id: str
   youtube_refresh_token: str
   google_client_id: str
   google_client_secret: str
-  sync_schedule: str
-  log_level: list(debug|info|warning|error)
+  sync_schedule: str?
+  log_level: str?
 map:
   - config:rw
