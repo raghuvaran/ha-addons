@@ -1,14 +1,13 @@
 #!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
 
-CONFIG_PATH=/data/options.json
+# One-shot sync - runs once then exits
 
 # Read config
 YOUTUBE_PLAYLIST_ID=$(bashio::config 'youtube_playlist_id')
 YOUTUBE_REFRESH_TOKEN=$(bashio::config 'youtube_refresh_token')
 GOOGLE_CLIENT_ID=$(bashio::config 'google_client_id')
 GOOGLE_CLIENT_SECRET=$(bashio::config 'google_client_secret')
-SYNC_SCHEDULE=$(bashio::config 'sync_schedule')
 LOG_LEVEL=$(bashio::config 'log_level')
 
 # Export for Python
@@ -20,16 +19,19 @@ export LOG_LEVEL
 
 cd /opt/spotify_yt_sync
 
-bashio::log.info "Spotify YouTube Sync starting..."
-bashio::log.info "Schedule: ${SYNC_SCHEDULE}"
+bashio::log.info "Starting Spotify YouTube Sync..."
 
-# Run initial sync
-bashio::log.info "Running initial sync..."
+# Run sync
 python3 sync.py
+EXIT_CODE=$?
 
-# Setup cron schedule
-echo "${SYNC_SCHEDULE} cd /opt/spotify_yt_sync && python3 sync.py >> /proc/1/fd/1 2>&1" > /etc/crontabs/root
+if [ $EXIT_CODE -eq 0 ]; then
+    bashio::log.info "Sync completed successfully"
+else
+    bashio::log.error "Sync failed with exit code $EXIT_CODE"
+fi
 
-# Start crond in foreground
-bashio::log.info "Starting scheduler..."
-exec crond -f -l 2
+bashio::log.info "Add-on finished, stopping container"
+
+# Signal s6 to stop the container
+/run/s6/basedir/bin/halt
