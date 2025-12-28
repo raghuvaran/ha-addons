@@ -1,6 +1,6 @@
 name: Spotify YouTube Sync
 description: Sync Spotify Top 50 Global playlist to YouTube
-version: "1.0.0"
+version: "1.0.1"
 slug: spotify_yt_sync
 url: https://github.com/raghuvaran/ha-addons/tree/main/spotify-yt-sync
 arch:
