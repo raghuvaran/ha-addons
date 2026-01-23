@@ -116,17 +116,17 @@ class SyncEngine:
     
     def _resolve_video_id(self, track: Track, yt_items: list[PlaylistItem]) -> str | None:
         """Find YouTube video ID for track, using cache and existing playlist."""
-        # First check if already in YouTube playlist
-        for item in yt_items:
-            if _track_matches_video(track, item.title):
-                self._cache.set(track.name, track.artist, item.video_id)
-                return item.video_id
-        
-        # Check cache
+        # Check cache FIRST - this is the source of truth for video ID stability
         cached = self._cache.get(track.name, track.artist)
         if cached:
             logger.debug(f"Cache hit: {track.name}")
             return cached
+        
+        # Check if already in YouTube playlist (and cache it)
+        for item in yt_items:
+            if _track_matches_video(track, item.title):
+                self._cache.set(track.name, track.artist, item.video_id)
+                return item.video_id
         
         # Search YouTube (expensive: 100 quota units)
         logger.debug(f"Searching: {track.name} by {track.artist}")
