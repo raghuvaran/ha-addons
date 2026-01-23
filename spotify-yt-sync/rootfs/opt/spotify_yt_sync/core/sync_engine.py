@@ -66,7 +66,21 @@ def _track_matches_video(track: Track, title: str) -> bool:
     norm_title = _normalize(title)
     norm_track = _normalize(track.name)
     norm_artist = _normalize(track.artist)
-    return norm_track in norm_title and norm_artist in norm_title
+    
+    # Standard check: both track and artist in title
+    if norm_track in norm_title and norm_artist in norm_title:
+        return True
+    
+    # Handle artist variations (e.g., "Lady Gaga" vs "Lady Gaga, Bruno Mars")
+    # Check if first word of multi-word artist matches
+    artist_words = norm_artist.split()
+    if len(artist_words) >= 2:
+        # Try matching just first two words for artists like "The Police", "Arctic Monkeys"
+        short_artist = " ".join(artist_words[:2])
+        if norm_track in norm_title and short_artist in norm_title:
+            return True
+    
+    return False
 
 
 def _find_lis_indices(current: list[str], target: list[str]) -> set[int]:
@@ -145,13 +159,18 @@ class SyncEngine:
         cache_hits = 0
         searches = 0
         
+        # Track which playlist video IDs have been claimed
+        claimed_vids = set()
+        yt_vid_set = set(item.video_id for item in yt_items)
+        
         for track in spotify_tracks:
             # Check playlist first
             matched = False
             for item in yt_items:
-                if _track_matches_video(track, item.title):
+                if item.video_id not in claimed_vids and _track_matches_video(track, item.title):
                     self._cache.set(track.name, track.artist, item.video_id)
                     target.append((track, item.video_id))
+                    claimed_vids.add(item.video_id)
                     playlist_matches += 1
                     matched = True
                     break
@@ -159,9 +178,10 @@ class SyncEngine:
             if matched:
                 continue
             
-            # Check cache
+            # Check cache - but only use if video isn't already in playlist
+            # (if it's in playlist, it should have matched above or belongs to another track)
             cached = self._cache.get(track.name, track.artist)
-            if cached:
+            if cached and cached not in yt_vid_set:
                 target.append((track, cached))
                 cache_hits += 1
                 continue
