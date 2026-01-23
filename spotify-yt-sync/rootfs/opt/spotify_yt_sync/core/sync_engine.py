@@ -63,14 +63,16 @@ def _normalize(s: str) -> str:
 
 def _extract_core_name(s: str) -> str:
     """Extract core name without parentheticals, leading 'The', etc."""
-    s = s.lower().strip()
-    # Remove parentheticals like "(with JENNIE...)" or "(Official Video)"
     import re
+    s = s.lower().strip()
+    # Extract and append parenthetical content (e.g., "진 (Jin)" -> "진 jin")
+    parens = re.findall(r'\(([^)]*)\)', s)
     s = re.sub(r'\([^)]*\)', '', s)
+    s = s + ' ' + ' '.join(parens)
     # Remove leading "the "
-    if s.startswith('the '):
-        s = s[4:]
-    # Normalize whitespace and punctuation
+    if s.strip().startswith('the '):
+        s = s.strip()[4:]
+    # Normalize punctuation
     s = re.sub(r'[^\w\s]', ' ', s)
     return " ".join(s.split())
 
