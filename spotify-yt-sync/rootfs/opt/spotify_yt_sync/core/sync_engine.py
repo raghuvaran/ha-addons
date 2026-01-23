@@ -65,7 +65,9 @@ def _extract_core_name(s: str) -> str:
     """Extract core name without parentheticals, leading 'The', etc."""
     import re
     s = s.lower().strip()
-    # Extract and append parenthetical content (e.g., "진 (Jin)" -> "진 jin")
+    # Remove parentheticals that start with "with", "feat", etc (collaborators)
+    s = re.sub(r'\((?:with|feat\.?|featuring)[^)]*\)', '', s)
+    # Extract remaining parenthetical content (e.g., "진 (Jin)" -> keep "jin")
     parens = re.findall(r'\(([^)]*)\)', s)
     s = re.sub(r'\([^)]*\)', '', s)
     s = s + ' ' + ' '.join(parens)
