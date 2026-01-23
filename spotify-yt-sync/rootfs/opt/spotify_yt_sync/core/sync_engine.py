@@ -61,6 +61,20 @@ def _normalize(s: str) -> str:
     return " ".join(s.lower().split())
 
 
+def _extract_core_name(s: str) -> str:
+    """Extract core name without parentheticals, leading 'The', etc."""
+    s = s.lower().strip()
+    # Remove parentheticals like "(with JENNIE...)" or "(Official Video)"
+    import re
+    s = re.sub(r'\([^)]*\)', '', s)
+    # Remove leading "the "
+    if s.startswith('the '):
+        s = s[4:]
+    # Normalize whitespace and punctuation
+    s = re.sub(r'[^\w\s]', ' ', s)
+    return " ".join(s.split())
+
+
 def _track_matches_video(track: Track, title: str) -> bool:
     """Check if YouTube video title matches Spotify track."""
     norm_title = _normalize(title)
@@ -71,14 +85,13 @@ def _track_matches_video(track: Track, title: str) -> bool:
     if norm_track in norm_title and norm_artist in norm_title:
         return True
     
-    # Handle artist variations (e.g., "Lady Gaga" vs "Lady Gaga, Bruno Mars")
-    # Check if first word of multi-word artist matches
-    artist_words = norm_artist.split()
-    if len(artist_words) >= 2:
-        # Try matching just first two words for artists like "The Police", "Arctic Monkeys"
-        short_artist = " ".join(artist_words[:2])
-        if norm_track in norm_title and short_artist in norm_title:
-            return True
+    # Try with core names (no parentheticals, no "The")
+    core_title = _extract_core_name(title)
+    core_track = _extract_core_name(track.name)
+    core_artist = _extract_core_name(track.artist)
+    
+    if core_track in core_title and core_artist in core_title:
+        return True
     
     return False
 
