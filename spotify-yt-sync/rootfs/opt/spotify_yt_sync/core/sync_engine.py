@@ -116,20 +116,21 @@ class SyncEngine:
     
     def _resolve_video_id(self, track: Track, yt_items: list[PlaylistItem]) -> str | None:
         """Find YouTube video ID for track, using cache and existing playlist."""
-        # Check cache FIRST - this is the source of truth for video ID stability
-        cached = self._cache.get(track.name, track.artist)
-        if cached:
-            logger.debug(f"Cache hit: {track.name}")
-            return cached
-        
-        # Check if already in YouTube playlist (and cache it)
+        # FIRST: Check if already in YouTube playlist - this is ground truth
+        # If video exists in playlist, use it (avoids unnecessary delete+insert)
         for item in yt_items:
             if _track_matches_video(track, item.title):
                 self._cache.set(track.name, track.artist, item.video_id)
                 return item.video_id
         
+        # Not in playlist - check cache for a known video ID
+        cached = self._cache.get(track.name, track.artist)
+        if cached:
+            logger.info(f"Cache hit (no playlist match): '{track.name}' by '{track.artist}'")
+            return cached
+        
         # Search YouTube (expensive: 100 quota units)
-        logger.debug(f"Searching: {track.name} by {track.artist}")
+        logger.info(f"Searching YouTube: '{track.name}' by '{track.artist}'")
         video_id = self._youtube.search_video(track.name, track.artist)
         if video_id:
             self._cache.set(track.name, track.artist, video_id)
@@ -140,14 +141,42 @@ class SyncEngine:
         """Build target video list from Spotify tracks."""
         target = []
         errors = []
+        playlist_matches = 0
+        cache_hits = 0
+        searches = 0
         
         for track in spotify_tracks:
-            video_id = self._resolve_video_id(track, yt_items)
+            # Check playlist first
+            matched = False
+            for item in yt_items:
+                if _track_matches_video(track, item.title):
+                    self._cache.set(track.name, track.artist, item.video_id)
+                    target.append((track, item.video_id))
+                    playlist_matches += 1
+                    matched = True
+                    break
+            
+            if matched:
+                continue
+            
+            # Check cache
+            cached = self._cache.get(track.name, track.artist)
+            if cached:
+                target.append((track, cached))
+                cache_hits += 1
+                continue
+            
+            # Search YouTube
+            logger.info(f"Searching: {track.name} by {track.artist}")
+            video_id = self._youtube.search_video(track.name, track.artist)
             if video_id:
+                self._cache.set(track.name, track.artist, video_id)
                 target.append((track, video_id))
+                searches += 1
             else:
                 errors.append(f"No match: {track.name} by {track.artist}")
         
+        logger.info(f"Resolution: {playlist_matches} playlist, {cache_hits} cache, {searches} search")
         return target, errors
     
     def _compute_operations(self, target: list[tuple[Track, str]], 
@@ -286,6 +315,13 @@ class SyncEngine:
         
         # Build target and compute operations
         target, resolve_errors = self._build_target_list(spotify_tracks, yt_items)
+        
+        # Diagnostic: check video ID overlap
+        target_vids = set(vid for _, vid in target)
+        current_vids = set(item.video_id for item in yt_items)
+        overlap = target_vids & current_vids
+        logger.info(f"Video ID overlap: {len(overlap)} of {len(target_vids)} target, {len(current_vids)} current")
+        
         inserts, deletes = self._compute_operations(target, yt_items)
         
         if not inserts and not deletes:
