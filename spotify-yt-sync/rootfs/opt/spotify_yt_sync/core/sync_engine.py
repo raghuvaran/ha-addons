@@ -199,9 +199,18 @@ class SyncEngine:
             # (if it's in playlist, it should have matched above or belongs to another track)
             cached = self._cache.get(track.name, track.artist)
             if cached and cached not in yt_vid_set:
+                logger.info(f"Cache hit (not in playlist): '{track.name}' by '{track.artist}'")
                 target.append((track, cached))
                 cache_hits += 1
                 continue
+            
+            # If cached video IS in playlist but didn't match, log for debugging
+            if cached and cached in yt_vid_set:
+                # Find which video has this ID
+                for item in yt_items:
+                    if item.video_id == cached:
+                        logger.warning(f"Cache mismatch: '{track.name}' cached as '{item.title}' but didn't match")
+                        break
             
             # Search YouTube
             logger.info(f"Searching: {track.name} by {track.artist}")
