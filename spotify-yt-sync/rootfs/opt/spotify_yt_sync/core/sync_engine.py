@@ -359,6 +359,14 @@ class SyncEngine:
         yt_count = len(yt_items)
         logger.info(f"YouTube: {yt_count} items")
         
+        # Dump data for local debugging (can be removed after fixing)
+        import json
+        debug_data = {
+            "spotify_tracks": [{"name": t.name, "artist": t.artist} for t in spotify_tracks],
+            "youtube_items": [{"video_id": i.video_id, "title": i.title} for i in yt_items],
+        }
+        logger.info(f"DEBUG_DATA: {json.dumps(debug_data)}")
+        
         # Build target and compute operations
         target, resolve_errors = self._build_target_list(spotify_tracks, yt_items)
         
