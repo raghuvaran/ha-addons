@@ -364,6 +364,7 @@ class SyncEngine:
         debug_data = {
             "spotify_tracks": [{"name": t.name, "artist": t.artist} for t in spotify_tracks],
             "youtube_items": [{"video_id": i.video_id, "title": i.title} for i in yt_items],
+            "cache": {k: v.get("video_id") for k, v in self._cache._cache.items()},
         }
         logger.info(f"DEBUG_DATA: {json.dumps(debug_data)}")
         
